@@ -12,9 +12,12 @@ try:
 except Exception as e:
     raise microscope.LibraryLoadError(e) from e
     
+import microscope
 import microscope.abc
 
-from ctypes import c_char_p, c_double
+from ctypes import c_char_p, c_double, create_string_buffer
+
+import time
 
 class ThorlabsNanoMaxAxis(microscope.abc.StageAxis):
     def __init__(self, serial_number, axis):
@@ -25,31 +28,35 @@ class ThorlabsNanoMaxAxis(microscope.abc.StageAxis):
         """
         self.serial_number = serial_number
         self.axis = axis
-        
+
+    @property        
     def limits(self):
         mintravel = c_double(20)
         maxtravel = c_double(10)
         TMC.SBC_GetMotorTravelLimits(self.serial_number, self.axis, mintravel, 
                                  maxtravel)
-        return [mintravel.value, maxtravel.value]
+        return microscope.AxisLimits(0, 5553600)
     
     def move_by(self, delta):
-        status = TMC.SBC_MoveRelative(self.serial_number,self.axis,delta)
+        status = TMC.SBC_MoveRelative(self.serial_number,self.axis,int(delta))
         if status:
             message = "Error"
             if status in TMC.errors_dict.keys():
                 message = TMC.errors_dict[status]
             raise microscope.DeviceError(message)
+        time.sleep(.8)
             
     def move_to(self, pos):
         # pos: int
-        status = TMC.SBC_MoveToPosition(self.serial_number, self.axis, pos)
+        status = TMC.SBC_MoveToPosition(self.serial_number, self.axis, int(pos))
         if status:
             message = "Error"
             if status in TMC.errors_dict.keys():
                 message = TMC.errors_dict[status]
             raise microscope.DeviceError(message)
+        time.sleep(.8)
             
+    @property
     def position(self):
         pos = TMC.SBC_GetPosition(self.serial_number, self.axis)
         return pos
@@ -58,8 +65,15 @@ class ThorlabsNanoMax(microscope.abc.Stage):
     """A Thorlabs Nanomax stage. So far supports only 3-axis, stepper-motor stage"""
     def __init__(self, serial_number: str, **kwargs) -> None:
         super().__init__(**kwargs)
-        
-        self.serial_number = c_char_p(bytes(str(serial_number), "utf-8"))
+
+        out = TMC.TLI_BuildDeviceList()
+        if out != 0:
+            raise RuntimeError('ups')
+#        n = TMC.TLI_GetDeviceListSize()
+#        serialNos = create_string_buffer(100)
+#        TMC.TLI_GetDeviceListByTypeExt(serialNos, 100, 70)
+    
+        self.serial_number = c_char_p(bytes(serial_number, "utf-8"))
         status = TMC.SBC_Open(self.serial_number)
 
         if status:
@@ -82,6 +96,7 @@ class ThorlabsNanoMax(microscope.abc.Stage):
                 if status in TMC.errors_dict.keys():
                     message = TMC.errors_dict[status]
                 raise microscope.DeviceError(message)
+        time.sleep(15)
         
     
     def _do_shutdown(self):

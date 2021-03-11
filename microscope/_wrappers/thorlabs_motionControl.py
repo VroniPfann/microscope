@@ -60,7 +60,7 @@ def make_serialnr(sn):
 
 
 # ----------- Untested methods ------------
-SBC_getNumChannels = make_prototype("SBC_getNumChannels", [c_char_p],restype = c_short)
+#SBC_getNumChannels = make_prototype("SBC_getNumChannels", [c_char_p],restype = c_short)
 # [*serialNo]
 
 SBC_GetRealValueFromDeviceUnit = make_prototype("SBC_GetRealValueFromDeviceUnit", 
