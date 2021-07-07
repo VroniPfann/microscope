@@ -559,11 +559,16 @@ class AndorSDK3(
         )[1]
         self._exposure_time.set_value(bounded_value)
         self._frame_rate.set_value(self._frame_rate.max())
+        print("Set exposure time to %f, resulting framerate %f."
+              % (
+            bounded_value,
+            self._frame_rate.get_value()))
         _logger.debug(
             "Set exposure time to %f, resulting framerate %f.",
             bounded_value,
             self._frame_rate.get_value(),
         )
+        print('read back ', self.get_exposure_time())
 
     def get_exposure_time(self):
         return self._exposure_time.get_value()

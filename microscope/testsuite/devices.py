@@ -196,6 +196,7 @@ class DummyDSP(microscope.abc.Device):
         for i in range(self._repeats):
             for a in self._actions:
                 _logger.info(a)
+                print('sleeping for ', a[0]/1000.0, ' for action ', a)
                 time.sleep(a[0] / 1000.0)
         if self._client:
             self._client.receiveData("DSP done")

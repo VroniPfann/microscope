@@ -83,6 +83,9 @@ class ThorlabsNanoMax(microscope.abc.Stage):
         axes_names = ["x","y","z"]
         self._axes = {}
         for j in range(self.n_axes):
+            time.sleep(5)
+            status =TMC.SBC_LoadSettings(self.serial_number,j+1)
+            print(status)
             axn = axes_names[j]
             self._axes[axn]=ThorlabsNanoMaxAxis(self.serial_number,j+1)
 

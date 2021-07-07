@@ -15,7 +15,7 @@ from ctypes.wintypes import DWORD
 
 
 #path = "Thorlabs.MotionControl.Benchtop.Piezo.dll"
-SDK = ctypes.WinDLL("Thorlabs.MotionControl.Benchtop.StepperMotor.dll")
+SDK = ctypes.CDLL("Thorlabs.MotionControl.Benchtop.StepperMotor.dll")
 # SDK = ctypes.CDLL(path)
 
 # from BMC stuff
@@ -53,6 +53,8 @@ SBC_StopPolling = make_prototype("SBC_StopPolling",[c_char_p, c_short])
 
 SBC_Close = make_prototype("SBC_Close",[c_char_p])
 # [serialNo]
+
+SBC_LoadSettings = make_prototype("SBC_LoadSettings", [c_char_p, c_short], c_bool)
 
 def make_serialnr(sn):
     """Formatting the 8-digit int serial number (ex 70897524) for e.g SBC_Open"""
