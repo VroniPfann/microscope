@@ -114,7 +114,7 @@ class SharedSerial:
         self, terminator: bytes = b"\n", size: typing.Optional[int] = None
     ) -> bytes:
         with self._lock:
-            return self._serial.read_until(terminator=terminator, size=size)
+            return self._serial.read_until(terminator, size=size)
 
     def write(self, data: bytes) -> int:
         with self._lock:
