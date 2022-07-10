@@ -102,7 +102,6 @@ class _VersaLaseConnection:
     def param_command(self, name: bytes, value: bytes) -> None:
         """Change parameter."""
         answer = self._command(b"%s=%s" % (name, value))
-        print(answer)
         #status = int(answer)
         
         #if status < 0:
@@ -211,6 +210,9 @@ class _VersaLaseLaserConnection:
 
     def get_pulse_mode(self) -> bool:
         return _parse_bool(self._laser_query(b"PUL"))
+
+    def get_external_power_control_mode(self) -> bool:
+        return _parse_bool(self._laser_query(b"EPC"))
     
 
 
@@ -219,6 +221,8 @@ class _VersaLaseLaser(microscope.abc.LightSource):
         super().__init__()
         self._conn = _VersaLaseLaserConnection(conn, laser_number)
         self._max_power = float(self._conn.get_max_power())
+        self._save_power = float(self._conn.get_power_setting())
+        self._track_digital_modulation = bool(self._conn.get_pulse_mode())
 
         # FIXME: set values to '0' because we need to pass an int as
         # values for settings of type str.  Probably a bug on
@@ -236,15 +240,30 @@ class _VersaLaseLaser(microscope.abc.LightSource):
         return self._conn.get_power() / self._max_power
 
     def _do_set_power(self, power: float) -> None:
-        if self._conn.get_emission_status() == True:
+        if self._conn.get_emission_status() == True:            #changing power is only possible when laser is enabled
             self._conn.set_power(power * self._max_power)
         else:
+            self._save_power = (power * self._max_power)
             raise microscope.DeviceError(
-                "Failed to set power, laser is not enabled"
+                "Failed to set power, laser is not enabled. But power setting has been saved"
             )
 
+    #def _do_set_power(self, power: float) -> None:              #change power with EPC hack
+     #  self._conn.set_external_power_control(True)
+     #   self._conn.set_emission(True)
+     #   self._conn.set_power(power * self._max_power)
+     #   self._conn.set_emission(False)
+      #  self._conn.set_external_power_control(False)
+        
+
     def _do_enable(self) -> None:
-        self._conn.set_emission(True)
+        self._conn.set_emission(True)                           #changing power and digital modulation is only possible when laser is enabled
+        if self._conn.get_power_setting() != self._save_power:
+            self._conn.set_power(self._save_power)
+        elif self._conn.get_pulse_mode() != self._track_digital_modulation:                                                                          
+            self._conn.set_pulse_mode(self._track_digital_modulation)
+        else:
+            pass
 
     def _do_disable(self) -> None:
         self._conn.set_emission(False)
@@ -268,14 +287,26 @@ class _VersaLaseLaser(microscope.abc.LightSource):
     ) -> None:
         if tmode is not microscope.TriggerMode.BULB:
             raise microscope.UnsupportedFeatureError(
-                "only TriggerMode.BULB mode is supported"
+                "only importriggerMode.BULB mode is supported"
             )
 
-        
-        if ttype is microscope.TriggerType.HIGH:
-            self._conn.set_pulse_mode(True)
+        if ttype is microscope.TriggerType.HIGH:                #changing digital modulation is only possible when laser is enabled
+            if self._conn.get_emission_status() == True:
+                self._conn.set_pulse_mode(True)
+            else:
+                self._track_digital_modulation = True
+                raise microscope.DeviceError(
+                    "Failed to change to DM, but setting has been saved and will be changed once laser is enabled"
+            )        
+    
         elif ttype is microscope.TriggerType.SOFTWARE:
-            self._conn.set_pulse_mode(False)
+            if self._conn.get_emission_status() == True:
+                self._conn.set_pulse_mode(False)
+            else:
+                self._track_digital_modulation = not True
+                raise microscope.DeviceError(
+                    "Failed to change to DM, but setting has been saved and will be changed once laser is enabled"
+            )        
         else:
             raise microscope.UnsupportedFeatureError(
                 "only trigger type HIGH and SOFTWARE are supported"
