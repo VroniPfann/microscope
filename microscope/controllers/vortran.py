@@ -223,6 +223,7 @@ class _VersaLaseLaser(microscope.abc.LightSource):
         self._max_power = float(self._conn.get_max_power())
         self._save_power = float(self._conn.get_power_setting())
         self._track_digital_modulation = bool(self._conn.get_pulse_mode())
+        self._epc_hack_on = False
 
         # FIXME: set values to '0' because we need to pass an int as
         # values for settings of type str.  Probably a bug on
@@ -237,33 +238,57 @@ class _VersaLaseLaser(microscope.abc.LightSource):
         return self._conn.get_emission_status()
 
     def _do_get_power(self) -> float:
-        return self._conn.get_power() / self._max_power
+        if self._conn.get_power_setting() != self._save_power:      #if condition needed for variable hack, otherwise wrong power returned if laser has not been enabled yet
+            return (self._save_power / self._max_power)
+        else:
+            return (self._conn.get_power_setting() / self._max_power)
 
     def _do_set_power(self, power: float) -> None:
-        if self._conn.get_emission_status() == True:            #changing power is only possible when laser is enabled
+        if self._conn.get_pulse_mode() == True:             #changing power does not work in PUL=1 and changing the pulse mode only works with LE=1
+            if self._conn.get_emission_status() == True:
+                self._conn.set_pulse_mode(False)
+            elif self._epc_hack_on == True:
+                self._conn.set_external_power_control(True)
+                self._conn.set_emission(True)
+                self._conn.set_pulse_mode(False)             #induces a short flash (unavoidable checked with vendor)
+                self._conn.set_emission(False)
+                self._conn.set_external_power_control(False)
+            else:
+                self._conn.set_emission(True)
+                self._conn.set_pulse_mode(False)
+                self._conn.set_emission(False)
+                
+        
+        if self._conn.get_emission_status() == True:    #changing power only works with LE=1
             self._conn.set_power(power * self._max_power)
-        else:
-            self._save_power = (power * self._max_power)
+            self._save_power = power * self._max_power
+        elif self._epc_hack_on == True:                 #EPC hack suggested by the vendor
+            self._conn.set_external_power_control(True)
+            self._conn.set_emission(True)
+            self._conn.set_power(power * self._max_power)
+            self._conn.set_emission(False)
+            self._conn.set_external_power_control(False)
+            self._save_power = power * self._max_power
+            #self._save_power = float(self._conn.get_power_setting() / self._max_power) #gives an error not sure why...
+        else:   
+            self._save_power = (power * self._max_power)    #variable hack: saving power setting into a variable when LE=0
             raise microscope.DeviceError(
-                "Failed to set power, laser is not enabled. But power setting has been saved"
-            )
-
-    #def _do_set_power(self, power: float) -> None:              #change power with EPC hack
-     #  self._conn.set_external_power_control(True)
-     #   self._conn.set_emission(True)
-     #   self._conn.set_power(power * self._max_power)
-     #   self._conn.set_emission(False)
-      #  self._conn.set_external_power_control(False)
+            "Failed to set power, laser is not enabled. But power setting has been saved"
+             )
+        if self._conn.get_pulse_mode != self._track_digital_modulation:     #induces blinking of the laser emission even if condition is true
+            self._conn.set_pulse_mode(self._track_digital_modulation)       #redundant?
+        
+                                        
+        #self._conn.set_pulse_mode(self._track_digital_modulation) #induces laser blinking
         
 
     def _do_enable(self) -> None:
         self._conn.set_emission(True)                           #changing power and digital modulation is only possible when laser is enabled
         if self._conn.get_power_setting() != self._save_power:
             self._conn.set_power(self._save_power)
-        elif self._conn.get_pulse_mode() != self._track_digital_modulation:                                                                          
+        if self._conn.get_pulse_mode() != self._track_digital_modulation:                                                                          
             self._conn.set_pulse_mode(self._track_digital_modulation)
-        else:
-            pass
+        
 
     def _do_disable(self) -> None:
         self._conn.set_emission(False)
@@ -290,23 +315,35 @@ class _VersaLaseLaser(microscope.abc.LightSource):
                 "only importriggerMode.BULB mode is supported"
             )
 
-        if ttype is microscope.TriggerType.HIGH:                #changing digital modulation is only possible when laser is enabled
+        if ttype is microscope.TriggerType.HIGH:
+            self._track_digital_modulation = True           #changing digital modulation is only possible when laser is enabled
             if self._conn.get_emission_status() == True:
                 self._conn.set_pulse_mode(True)
+            elif self._epc_hack_on == True:
+                self._conn.set_external_power_control(True)
+                self._conn.set_emission(True)
+                self._conn.set_pulse_mode(True)             #induces a short flash (unavoidable checked with vendor)
+                self._conn.set_emission(False)
+                self._conn.set_external_power_control(False)     
             else:
-                self._track_digital_modulation = True
                 raise microscope.DeviceError(
                     "Failed to change to DM, but setting has been saved and will be changed once laser is enabled"
-            )        
+                )        
     
         elif ttype is microscope.TriggerType.SOFTWARE:
+            self._track_digital_modulation = not True
             if self._conn.get_emission_status() == True:
                 self._conn.set_pulse_mode(False)
+            elif self._epc_hack_on == True:
+                self._conn.set_external_power_control(True)
+                self._conn.set_emission(True)
+                self._conn.set_pulse_mode(False)
+                self._conn.set_emission(False)
+                self._conn.set_external_power_control(False)
             else:
-                self._track_digital_modulation = not True
                 raise microscope.DeviceError(
-                    "Failed to change to DM, but setting has been saved and will be changed once laser is enabled"
-            )        
+                    "Failed to switch off DM, but setting has been saved and will be changed once laser is enabled"
+                )        
         else:
             raise microscope.UnsupportedFeatureError(
                 "only trigger type HIGH and SOFTWARE are supported"
