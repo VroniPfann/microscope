@@ -223,7 +223,7 @@ class _VersaLaseLaser(microscope.abc.LightSource):
         self._max_power = float(self._conn.get_max_power())
         self._save_power = float(self._conn.get_power_setting())
         self._track_digital_modulation = bool(self._conn.get_pulse_mode())
-        self._epc_hack_on = False
+        self._epc_hack_on = True
 
         # FIXME: set values to '0' because we need to pass an int as
         # values for settings of type str.  Probably a bug on
@@ -272,7 +272,7 @@ class _VersaLaseLaser(microscope.abc.LightSource):
             #self._save_power = float(self._conn.get_power_setting() / self._max_power) #gives an error not sure why...
         else:   
             self._save_power = (power * self._max_power)    #variable hack: saving power setting into a variable when LE=0
-            raise microscope.DeviceError(
+            _LOGGER.info(
             "Failed to set power, laser is not enabled. But power setting has been saved"
              )
         if self._conn.get_pulse_mode != self._track_digital_modulation:     #induces blinking of the laser emission even if condition is true
@@ -326,7 +326,7 @@ class _VersaLaseLaser(microscope.abc.LightSource):
                 self._conn.set_emission(False)
                 self._conn.set_external_power_control(False)     
             else:
-                raise microscope.DeviceError(
+                _LOGGER.info(
                     "Failed to change to DM, but setting has been saved and will be changed once laser is enabled"
                 )        
     
@@ -341,7 +341,7 @@ class _VersaLaseLaser(microscope.abc.LightSource):
                 self._conn.set_emission(False)
                 self._conn.set_external_power_control(False)
             else:
-                raise microscope.DeviceError(
+                _LOGGER.info(
                     "Failed to switch off DM, but setting has been saved and will be changed once laser is enabled"
                 )        
         else:

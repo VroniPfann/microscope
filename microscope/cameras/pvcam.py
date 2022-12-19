@@ -261,6 +261,7 @@ FLASH_MODE = 4
 VARIABLE_TIMED_MODE = 5
 INT_STROBE_MODE = 6
 MAX_EXPOSE_MODE = 7
+EXT_TRIG_LEVEL = (7 + 3) << 8
 Extended = 8
 camera = 9
 The = 10
@@ -1167,7 +1168,7 @@ TRIGGER_MODES = {
     TRIG_VARIABLE: TriggerMode("variable timed", VARIABLE_TIMED_MODE),
     TRIG_FIRST: TriggerMode("trig. first", TRIGGER_FIRST_MODE),
     TRIG_STROBED: TriggerMode("strobed", STROBED_MODE),
-    TRIG_BULB: TriggerMode("bulb", BULB_MODE),
+    TRIG_BULB: TriggerMode("ext trig level", EXT_TRIG_LEVEL),
 }
 
 PV_MODE_TO_TRIGGER = {
